@@ -134,6 +134,22 @@ public class ShoppingListResource implements ShoppingListsApi {
     }
 
     @Override
+    public Response reorderByCommon(Long listId) {
+        String userId = jwt.getSubject();
+        log.info("User {} is reordering in shopping list with id {}", userId, listId);
+
+        Optional<ShoppingList> list = shoppingListService.getById(new ShoppingListId(listId));
+
+        if (list.isEmpty()) {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+
+        ShoppingList updated = shoppingListService.reorderByCommon(list.get());
+
+        return Response.ok(updated).build();
+    }
+
+    @Override
     public Response updateShoppingItem(Long listId, Long itemId, ShoppingItemDto shoppingItemDto) {
         String userId = jwt.getSubject();
         log.info("User {} is updating item id={} in shopping list id={}", userId, itemId, listId);

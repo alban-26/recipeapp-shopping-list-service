@@ -92,5 +92,20 @@ public class ShoppingListService extends AbstractAccess<ShoppingListRepository, 
     }
 
 
+    public ShoppingList reorderByCommon(ShoppingList list) {
+        List<ShoppingItem> sorted = list.shoppingItems().stream()
+                .sorted(Comparator.comparingInt(item -> item.product().category().getRank()))
+                .toList();
+
+        List<ShoppingItem> reranked = IntStream.range(0, sorted.size())
+                .mapToObj(i -> sorted.get(i).withRank(i))
+                .toList();
+
+        reranked.forEach(item -> repository.rearrangeRank(list.id(), item));
+
+        return list.withShoppingItems(reranked);
+    }
+
+
 
 }

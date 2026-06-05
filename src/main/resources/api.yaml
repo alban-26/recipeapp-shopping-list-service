@@ -117,6 +117,29 @@ paths:
                 $ref: '#/components/schemas/ShoppingItemDto'
 
 
+  /shoppingLists/{listId}/shoppingItems/reorderByCommon:
+    post:
+      summary: Rearrange shopping items within a shopping list
+      operationId: reorderByCommon
+      parameters:
+        - name: listId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Shopping items reordered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShoppingListDto'
+        '400':
+          description: Invalid indices provided
+        '404':
+          description: Shopping list not found
+
   /shoppingLists/{listId}/shoppingItems/reorder:
     post:
       summary: Rearrange shopping items within a shopping list

@@ -6,9 +6,11 @@ import com.myapp.shopping.application.ShoppingListService;
 import com.myapp.shopping.domain.model.ShoppingList;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import lombok.extern.slf4j.Slf4j;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 
 @ApplicationScoped
+@Slf4j
 public class MealPlanCreatedConsumer {
 
     private final ShoppingListService shoppingListService;
@@ -25,7 +27,7 @@ public class MealPlanCreatedConsumer {
 
     @Incoming("recipe-ingredients")
     public void consume(MealPlanCreatedEvent event) {
-        System.out.println("📩 Received MealPlanCreatedEvent: ");
+        log.info("Received MealPlanCreatedEvent: ");
 
         ShoppingList shoppingList = shoppingListConverter.eventToDomain(event).withUserId(event.userId);
 

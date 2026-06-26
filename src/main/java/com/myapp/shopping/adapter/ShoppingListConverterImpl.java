@@ -25,6 +25,7 @@ import java.util.stream.Stream;
 public class ShoppingListConverterImpl implements ShoppingListConverter {
 
     private final ShoppingItemConverter shoppingItemConverter;
+    private static final String SHOPPING_LIST = "Einkaufsliste";
 
     @Inject
     public ShoppingListConverterImpl(ShoppingItemConverter shoppingItemConverter) {
@@ -99,12 +100,16 @@ public class ShoppingListConverterImpl implements ShoppingListConverter {
                         .toList();
         return new ShoppingList(
                 new ShoppingListId(0L),
-                LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")),
+                createShoppingListTitle(mealPlanCreatedEvent.getStartDate(), mealPlanCreatedEvent.getEndDate()),
                 shoppingItems,
                 LocalDate.now(),
                 mealPlanCreatedEvent.getUserId(),
                 ProductOrderStrategy.STANDARD
         );
+    }
+
+    private static String createShoppingListTitle(LocalDate start, LocalDate end) {
+        return SHOPPING_LIST.concat("(" + start.format(DateTimeFormatter.ofPattern("dd.MM")) + " - " + end.format(DateTimeFormatter.ofPattern("dd.MM")) + ")");
     }
 
 

@@ -25,7 +25,9 @@ import java.util.stream.Stream;
 public class ShoppingListConverterImpl implements ShoppingListConverter {
 
     private final ShoppingItemConverter shoppingItemConverter;
-    private static final String SHOPPING_LIST = "Einkaufsliste";
+    private static final DateTimeFormatter FORMATTER =
+            DateTimeFormatter.ofPattern("d. MMMM", Locale.GERMAN);
+
 
     @Inject
     public ShoppingListConverterImpl(ShoppingItemConverter shoppingItemConverter) {
@@ -109,7 +111,10 @@ public class ShoppingListConverterImpl implements ShoppingListConverter {
     }
 
     private static String createShoppingListTitle(LocalDate start, LocalDate end) {
-        return SHOPPING_LIST.concat("(" + start.format(DateTimeFormatter.ofPattern("dd.MM")) + " - " + end.format(DateTimeFormatter.ofPattern("dd.MM")) + ")");
+        if (start.equals(end)) {
+            return start.format(FORMATTER);
+        }
+        return start.format(FORMATTER) + " - " + end.format(FORMATTER);
     }
 
 

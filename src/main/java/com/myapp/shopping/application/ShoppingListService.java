@@ -1,6 +1,9 @@
 package com.myapp.shopping.application;
 
 import com.my.common.api.AbstractAccess;
+import com.my.common.api.UserId;
+import com.my.common.api.pagination.PageRequest;
+import com.my.common.api.pagination.PageResult;
 import com.myapp.shopping.domain.model.ShoppingItem;
 import com.myapp.shopping.domain.model.ShoppingItemId;
 import com.myapp.shopping.domain.model.ShoppingList;
@@ -107,5 +110,8 @@ public class ShoppingListService extends AbstractAccess<ShoppingListRepository, 
     }
 
 
-
+    @Override
+    public PageResult<ShoppingList> getAllByUser(UserId userId, PageRequest pageRequest) {
+        return null;
+    }
 }

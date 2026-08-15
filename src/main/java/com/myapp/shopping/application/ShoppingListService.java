@@ -77,7 +77,7 @@ public class ShoppingListService extends AbstractAccess<ShoppingListRepository, 
             );
         }
 
-        List<ShoppingItem> reordered = new ArrayList<>(items);
+        List<ShoppingItem> reordered = new ArrayList<>(items.stream().sorted(Comparator.comparingInt(ShoppingItem::rank)).toList());
 
         ShoppingItem movedItem = reordered.remove(fromIndex);
         reordered.add(toIndex, movedItem);

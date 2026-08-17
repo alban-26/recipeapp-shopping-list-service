@@ -126,8 +126,8 @@ public class ShoppingListServiceTest {
 
         ShoppingList reorderedList = shoppingListService.rearrangeItems(shoppingList.get(), 2, 0);
 
-        assertEquals(5L, reorderedList.shoppingItems().get(0).id().id());
-        assertEquals(1L, reorderedList.shoppingItems().get(1).id().id());
+        assertEquals(1L, reorderedList.shoppingItems().get(0).id().id());
+        assertEquals(5L, reorderedList.shoppingItems().get(1).id().id());
         assertEquals(3L, reorderedList.shoppingItems().get(2).id().id());
 
     }

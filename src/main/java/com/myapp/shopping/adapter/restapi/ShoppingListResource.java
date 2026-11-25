@@ -29,6 +29,7 @@ import java.util.stream.Collectors;
 @Path("/shoppingLists")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
+@NonBlocking
 @ApplicationScoped
 @Slf4j
 public class ShoppingListResource implements ShoppingListsApi {

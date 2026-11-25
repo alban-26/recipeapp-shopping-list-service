@@ -26,12 +26,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static java.lang.String.format;
-
 @Path("/shoppingLists")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-@NonBlocking
 @ApplicationScoped
 @Slf4j
 public class ShoppingListResource implements ShoppingListsApi {
@@ -57,7 +54,10 @@ public class ShoppingListResource implements ShoppingListsApi {
         String userId = jwt.getSubject();
         log.info("User {} is creating a new shopping list: {}", userId, dto.getTitle());
 
-        ShoppingList list = shoppingListConverter.dtoToDomain(dto).withUserId(new UserId(userId));
+        // Anlegen heisst immer "neu": mitgeschickte IDs werden ignoriert. Sonst
+        // wuerde ein POST mit fremder Listen-ID diese Liste ueberschreiben und
+        // eine fremde Eintrags-ID den fremden Eintrag in die neue Liste haengen.
+        ShoppingList list = asNew(shoppingListConverter.dtoToDomain(dto)).withUserId(new UserId(userId));
         ShoppingList created = shoppingListService.save(list);
 
         log.info("User {} created shopping list successfully with id={}", userId, created.id().id());
@@ -71,7 +71,7 @@ public class ShoppingListResource implements ShoppingListsApi {
         String userId = jwt.getSubject();
         log.info("User {} is fetching shopping list with id={}", userId, id);
 
-        Optional<ShoppingList> listOpt = shoppingListService.getById(new ShoppingListId(id));
+        Optional<ShoppingList> listOpt = findOwnList(id, userId);
         if (listOpt.isEmpty()) {
             log.warn("User {} tried to fetch non-existing shopping list with id={}", userId, id);
             return Response.status(Response.Status.NOT_FOUND).build();
@@ -104,10 +104,10 @@ public class ShoppingListResource implements ShoppingListsApi {
     public Response rearrangeShoppingItems(Long listId, ReorderShoppingItemsRequest reorderShoppingItemsRequest) {
         String userId = jwt.getSubject();
         log.info("User {} is reordering in shopping list with id {}", userId, listId);
-        Optional<ShoppingList> list = shoppingListService.getById(new ShoppingListId(listId));
+        Optional<ShoppingList> list = findOwnList(listId, userId);
 
         if (list.isEmpty()) {
-            throw new RuntimeException(format("Shopping list with id %d is not available", listId));
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
 
         ShoppingList updated =
@@ -127,6 +127,10 @@ public class ShoppingListResource implements ShoppingListsApi {
         String userId = jwt.getSubject();
         log.info("User {} is removing item id={} from shopping list id={}", userId, itemId, listId);
 
+        if (findOwnList(listId, userId).isEmpty()) {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+
         shoppingListService.removeShoppingItem(new ShoppingListId(listId), new ShoppingItemId(itemId));
 
         log.info("User {} successfully removed item id={} from shopping list id={}", userId, itemId, listId);
@@ -138,7 +142,7 @@ public class ShoppingListResource implements ShoppingListsApi {
         String userId = jwt.getSubject();
         log.info("User {} is reordering in shopping list with id {}", userId, listId);
 
-        Optional<ShoppingList> list = shoppingListService.getById(new ShoppingListId(listId));
+        Optional<ShoppingList> list = findOwnList(listId, userId);
 
         if (list.isEmpty()) {
             return Response.status(Response.Status.NOT_FOUND).build();
@@ -154,7 +158,12 @@ public class ShoppingListResource implements ShoppingListsApi {
         String userId = jwt.getSubject();
         log.info("User {} is updating item id={} in shopping list id={}", userId, itemId, listId);
 
-        ShoppingItem item = shoppingItemConverter.dtoToDomain(shoppingItemDto);
+        if (findOwnList(listId, userId).isEmpty()) {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+
+        // Massgeblich ist die ID aus dem Pfad, nicht die aus dem Body.
+        ShoppingItem item = shoppingItemConverter.dtoToDomain(shoppingItemDto).withId(new ShoppingItemId(itemId));
 
         ShoppingItem updatedItem = shoppingListService.updateShoppingItem(new ShoppingListId(listId), item);
 
@@ -167,7 +176,7 @@ public class ShoppingListResource implements ShoppingListsApi {
         String userId = jwt.getSubject();
         log.info("User {} is deleting shopping list with id={}", userId, id);
 
-        Optional<ShoppingList> listOpt = shoppingListService.getById(new ShoppingListId(id));
+        Optional<ShoppingList> listOpt = findOwnList(id, userId);
         if (listOpt.isEmpty()) {
             log.warn("User {} tried to delete non-existing shopping list with id={}", userId, id);
             return Response.status(Response.Status.NOT_FOUND).build();
@@ -185,13 +194,17 @@ public class ShoppingListResource implements ShoppingListsApi {
         String userId = jwt.getSubject();
         log.info("User {} is updating shopping list with id={}", userId, id);
 
-        Optional<ShoppingList> existingOpt = shoppingListService.getById(new ShoppingListId(id));
+        Optional<ShoppingList> existingOpt = findOwnList(id, userId);
         if (existingOpt.isEmpty()) {
             log.warn("User {} tried to update non-existing shopping list with id={}", userId, id);
             return Response.status(Response.Status.NOT_FOUND).build();
         }
 
-        ShoppingList updated = shoppingListConverter.dtoToDomain(dto).withUserId(new UserId(userId));
+        // Massgeblich ist die ID aus dem Pfad, nicht die aus dem Body: geprueft
+        // wurde die Liste aus dem Pfad, also wird auch genau diese geaendert.
+        ShoppingList updated = shoppingListConverter.dtoToDomain(dto)
+                .withId(new ShoppingListId(id))
+                .withUserId(new UserId(userId));
         ShoppingList saved = shoppingListService.save(updated);
 
         log.info("User {} updated shopping list successfully with id={}", userId, id);
@@ -203,13 +216,41 @@ public class ShoppingListResource implements ShoppingListsApi {
         String userId = jwt.getSubject();
         log.info("User {} is adding new item to shopping list id={}", userId, listId);
 
-        ShoppingItem newShoppingItem = shoppingItemConverter.dtoToDomain(itemDto);
+        if (findOwnList(listId, userId).isEmpty()) {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+
+        // Ein neuer Eintrag bekommt immer eine eigene Zeile; eine mitgeschickte
+        // ID wuerde sonst einen bestehenden (auch fremden) Eintrag einhaengen.
+        ShoppingItem newShoppingItem = shoppingItemConverter.dtoToDomain(itemDto).withId(new ShoppingItemId(0L));
         ShoppingItem created = shoppingListService.addShoppingItem(new ShoppingListId(listId), newShoppingItem);
 
         log.info("User {} added new item to shopping list id={}", userId, listId);
         return Response.created(URI.create("/shoppingLists/" + listId + "/items"))
                 .entity(created.id().id())
                 .build();
+    }
+
+    /**
+     * Liefert die Liste nur, wenn sie dem angemeldeten Nutzer gehoert. Eine
+     * fremde Liste wird genauso behandelt wie eine nicht vorhandene (404),
+     * damit sich ueber die Antwort nicht herausfinden laesst, welche IDs es gibt.
+     */
+    private Optional<ShoppingList> findOwnList(Long listId, String userId) {
+        if (listId == null || userId == null) {
+            return Optional.empty();
+        }
+        return shoppingListService.getById(new ShoppingListId(listId))
+                .filter(list -> list.userId() != null && userId.equals(list.userId().value()));
+    }
+
+    private static ShoppingList asNew(ShoppingList list) {
+        List<ShoppingItem> items = list.shoppingItems() == null
+                ? List.of()
+                : list.shoppingItems().stream()
+                        .map(item -> item.withId(new ShoppingItemId(0L)))
+                        .toList();
+        return list.withId(new ShoppingListId(0L)).withShoppingItems(items);
     }
 
 

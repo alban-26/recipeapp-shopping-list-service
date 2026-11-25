@@ -149,6 +149,23 @@ class ShoppingListResourceTest {
                 .body("title", equalTo("Groceries"));
     }
 
+    // --- GET /shoppingLists/{id}: fremde Liste ---
+    @Test
+    @TestSecurity(user = "user1", roles = {"user"})
+    void testGetShoppingListById_foreignList_notFound() {
+        Mockito.when(jwt.getSubject()).thenReturn("user1");
+
+        Mockito.when(shoppingListService.getById(new ShoppingListId(1L)))
+                .thenReturn(Optional.of(listOwnedBy("user2")));
+
+        given()
+                .accept(ContentType.JSON)
+                .when()
+                .get("/shoppingLists/1")
+                .then()
+                .statusCode(404);
+    }
+
     // --- DELETE /shoppingLists/{id} ---
     @Test
     @TestSecurity(user = "user1", roles = {"user"})
@@ -180,6 +197,8 @@ class ShoppingListResourceTest {
     @TestSecurity(user = "user1", roles = {"user"})
     void testRemoveShoppingItem() {
         Mockito.when(jwt.getSubject()).thenReturn("user1");
+        Mockito.when(shoppingListService.getById(new ShoppingListId(1L)))
+                .thenReturn(Optional.of(listOwnedBy("user1")));
 
         given()
                 .accept(ContentType.JSON)
@@ -194,11 +213,31 @@ class ShoppingListResourceTest {
         );
     }
 
+    // --- DELETE /shoppingLists/{listId}/items/{itemId}: fremde Liste ---
+    @Test
+    @TestSecurity(user = "user1", roles = {"user"})
+    void testRemoveShoppingItem_foreignList_notFound() {
+        Mockito.when(jwt.getSubject()).thenReturn("user1");
+        Mockito.when(shoppingListService.getById(new ShoppingListId(1L)))
+                .thenReturn(Optional.of(listOwnedBy("user2")));
+
+        given()
+                .accept(ContentType.JSON)
+                .when()
+                .delete("/shoppingLists/1/shoppingItems/10")
+                .then()
+                .statusCode(404);
+
+        Mockito.verify(shoppingListService, Mockito.never()).removeShoppingItem(any(), any());
+    }
+
     // --- POST /shoppingLists/{listId}/items ---
     @Test
     @TestSecurity(user = "user1", roles = {"user"})
     void testAddShoppingItem() {
         Mockito.when(jwt.getSubject()).thenReturn("user1");
+        Mockito.when(shoppingListService.getById(new ShoppingListId(1L)))
+                .thenReturn(Optional.of(listOwnedBy("user1")));
 
         ShoppingItemDto itemDto = new ShoppingItemDto();
 
@@ -224,6 +263,17 @@ class ShoppingListResourceTest {
                 .statusCode(201)
                 .header("Location", endsWith("/shoppingLists/1/items"))
                 .body(equalTo("10"));
+    }
+
+    private static ShoppingList listOwnedBy(String userId) {
+        return new ShoppingList(
+                new ShoppingListId(1L),
+                "Groceries",
+                List.of(),
+                LocalDate.of(2025, 1, 1),
+                new UserId(userId),
+                ProductOrderStrategy.STANDARD
+        );
     }
 
 }

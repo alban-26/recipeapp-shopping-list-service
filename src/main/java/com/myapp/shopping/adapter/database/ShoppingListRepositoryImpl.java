@@ -5,6 +5,8 @@ import com.myapp.shopping.adapter.ShoppingItemConverter;
 import com.myapp.shopping.adapter.ShoppingListConverter;
 import com.myapp.shopping.adapter.database.entities.ShoppingItemEntity;
 import com.myapp.shopping.adapter.database.entities.ShoppingListEntity;
+import com.myapp.shopping.domain.model.Product;
+import com.myapp.shopping.domain.model.ProductCategory;
 import com.myapp.shopping.domain.model.ShoppingItem;
 import com.myapp.shopping.domain.model.ShoppingItemId;
 import com.myapp.shopping.domain.model.ShoppingList;
@@ -173,6 +175,15 @@ public class ShoppingListRepositoryImpl implements ShoppingListRepository {
 
     @Override
     public ShoppingItem updateShoppingItem(ShoppingListId shoppingListId, ShoppingItem shoppingItem) {
+        // Bisher wurden nur Menge, Einheit, Haken und Rang gespeichert - ein
+        // geaenderter Name ging stillschweigend verloren.
+        // Jeder Listeneintrag hat seine eigene shopping_item-Zeile (alle
+        // Einfuegepfade legen sie neu an), das Umbenennen wirkt also nur hier.
+        Product product = shoppingItem.product();
+        if (product != null && product.name() != null && !product.name().isBlank()) {
+            ProductCategory category = product.category() != null ? product.category() : ProductCategory.OTHER;
+            shoppingListMapper.updateItemProduct(shoppingListId.id(), shoppingItem.id().id(), product.name().trim(), category.name());
+        }
         shoppingListMapper.updateListEntry(shoppingListId.id(), shoppingItem.id().id(), shoppingItem.quantity(), shoppingItem.unit().name(), shoppingItem.checked(), shoppingItem.rank());
         return shoppingItem;
     }

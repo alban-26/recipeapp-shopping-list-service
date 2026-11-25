@@ -18,6 +18,9 @@ public interface ShoppingListMapper {
             @Result(property = "id", column = "id"),
             @Result(property = "title", column = "title"),
             @Result(property = "createdAt", column = "created_at"),
+            // Fehlte bisher: ohne diese Zeile war der Besitzer beim Einzelabruf
+            // immer null und liess sich nicht pruefen.
+            @Result(property = "userId", column = "user_id"),
             @Result(property = "productOrderStrategy", column = "product_order"),
             @Result(property = "items", column = "id",
                     many = @Many(select = "com.myapp.shopping.adapter.database.ShoppingListMapper.findEntriesByShoppingListId"))
@@ -102,6 +105,23 @@ public interface ShoppingListMapper {
                          @Param("unit") String unit,
                          @Param("checked") Boolean checked,
     @Param("rank") int rank);
+
+    // Name/Kategorie eines Eintrags aendern - aber nur, wenn der Eintrag
+    // wirklich zu dieser Liste gehoert.
+    @Update("""
+        UPDATE shopping_item
+        SET name = #{name}, product_category = #{productCategory}
+        WHERE id = #{itemId}
+          AND EXISTS (
+              SELECT 1 FROM shopping_list_entry sle
+              WHERE sle.shopping_list_id = #{shoppingListId}
+                AND sle.shopping_item_id = #{itemId}
+          )
+        """)
+    void updateItemProduct(@Param("shoppingListId") Long shoppingListId,
+                           @Param("itemId") Long itemId,
+                           @Param("name") String name,
+                           @Param("productCategory") String productCategory);
 
     @Update("""
         UPDATE shopping_list_entry
